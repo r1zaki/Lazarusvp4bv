@@ -2,192 +2,160 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MindAR Debug Test</title>
+    <title>MindAR - Video Above Marker</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <style>
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
+            overflow: hidden;
         }
-        #debugInfo {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            z-index: 9999;
-            font-size: 12px;
-            max-width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        #debugInfo div {
-            margin: 5px 0;
-            padding: 5px;
-            border-bottom: 1px solid #444;
-        }
-        .success { color: #4CAF50; }
-        .error { color: #f44336; }
-        .warning { color: #ff9800; }
+        video { display: none; }
+        
         #startButton {
             position: fixed;
-            bottom: 20px;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
-            font-size: 18px;
-            background: #4CAF50;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 15px;
             cursor: pointer;
-            z-index: 9998;
+            z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        
+        #instructions {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 999;
+            text-align: center;
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="debugInfo">
-        <div><strong>🔍 MindAR Debug Console</strong></div>
-        <div id="log"></div>
-    </div>
-    
-    <button id="startButton">START AR TEST</button>
+    <button id="startButton">🎬 Start AR Experience</button>
+    <div id="instructions">📸 Point camera at your marker</div>
 
     <a-scene 
         mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; uiError: yes;" 
-        vr-mode-ui="enabled: false"
+        color-space="sRGB" 
+        renderer="colorManagement: true, physicallyCorrectLights" 
+        vr-mode-ui="enabled: false" 
+        device-orientation-permission-ui="enabled: false"
     >
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
+        <!-- Target entity - video floats ABOVE the marker -->
         <a-entity mindar-image-target="targetIndex: 0">
-            <!-- Simple red box to test if tracking works -->
-            <a-box color="red" position="0 0.5 0" scale="0.5 0.5 0.5"></a-box>
-            
-            <!-- Your video -->
+            <!-- Video plane positioned ABOVE the marker (Y = 0.5) -->
             <a-plane
                 id="videoPlane"
-                material="src: #vid; shader: flat"
-                width="1"
-                height="0.552"
-                position="0 0 0"
+                material="shader: flat; transparent: true; opacity: 1"
+                width="1.2"
+                height="0.8"
+                position="0 0.5 0"
+                rotation="0 0 0"
             ></a-plane>
+            
+            <!-- Optional: Add a shadow/platform below video to show it's floating -->
+            <a-circle
+                color="#333333"
+                opacity="0.3"
+                radius="0.6"
+                position="0 0.01 0"
+                rotation="-90 0 0"
+            ></a-circle>
         </a-entity>
     </a-scene>
     
-    <!-- Video hidden from DOM -->
+    <!-- Hidden video element -->
     <video
         id="vid"
         src="assets/asset.mp4"
-        style="display: none;"
         preload="auto"
         loop
-        muted
-        playsinline
+        crossorigin="anonymous"
         webkit-playsinline
+        playsinline
+        muted
     ></video>
 
     <script>
-        const log = document.getElementById('log');
         const startButton = document.getElementById('startButton');
-        const video = document.getElementById('vid');
+        const instructions = document.getElementById('instructions');
         const sceneEl = document.querySelector('a-scene');
+        const video = document.getElementById('vid');
+        const videoPlane = document.getElementById('videoPlane');
         
-        function addLog(message, type = 'info') {
-            const div = document.createElement('div');
-            div.className = type;
-            div.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
-            log.appendChild(div);
-            console.log(message);
-        }
+        console.log('🔧 Initializing AR...');
         
-        addLog('🟢 Page loaded');
-        
-        // Check if video file exists
+        // Load video and apply as texture
         video.addEventListener('loadeddata', () => {
-            addLog('✓ Video file loaded successfully', 'success');
-            addLog(`Video duration: ${video.duration}s`, 'success');
+            console.log('✓ Video loaded');
+            videoPlane.setAttribute('material', 'src', video);
         });
         
-        video.addEventListener('error', (e) => {
-            addLog('❌ VIDEO FILE ERROR - Check if assets/asset.mp4 exists!', 'error');
-            addLog(`Error: ${video.error.message}`, 'error');
+        video.addEventListener('error', () => {
+            console.error('❌ Video file not found! Check: assets/asset.mp4');
         });
         
-        // Start button
+        // Start AR on button click
         startButton.addEventListener('click', async () => {
-            addLog('🔵 Start button clicked');
+            console.log('🔵 Starting AR...');
             startButton.style.display = 'none';
+            instructions.style.display = 'block';
             
             try {
                 const mindAR = sceneEl.systems['mindar-image-system'];
-                addLog('🔵 Starting MindAR...');
                 await mindAR.start();
-                addLog('✓ MindAR started successfully', 'success');
+                console.log('✓ MindAR started');
             } catch (err) {
-                addLog(`❌ MindAR Error: ${err.message}`, 'error');
-                addLog('Check if assets/targets.mind file exists!', 'error');
+                console.error('❌ MindAR error:', err);
+                alert('Error: Make sure assets/targets.mind file exists!');
             }
         });
         
         // Scene loaded
         sceneEl.addEventListener('loaded', () => {
-            addLog('✓ A-Frame scene loaded', 'success');
+            console.log('✓ Scene loaded');
             
             const target = document.querySelector('[mindar-image-target]');
             
-            if (!target) {
-                addLog('❌ No image target found in scene', 'error');
-                return;
-            }
-            
-            addLog('✓ Image target element found', 'success');
-            
-            // Target found
-            target.addEventListener('targetFound', () => {
-                addLog('🎯 TARGET FOUND!', 'success');
-                addLog('Red box should be visible now');
-                addLog('Attempting to play video...');
-                
-                video.play()
-                    .then(() => {
-                        addLog('✓ Video playing!', 'success');
-                    })
-                    .catch(err => {
-                        addLog(`⚠️ Video play blocked: ${err.message}`, 'warning');
-                        addLog('Tap screen to play video', 'warning');
-                        
+            if (target) {
+                // Target found
+                target.addEventListener('targetFound', () => {
+                    console.log('🎯 Marker found!');
+                    
+                    video.play().catch(err => {
+                        console.warn('⚠️ Autoplay blocked, tap to play');
+                        // Play on next tap
                         document.addEventListener('click', () => {
                             video.play();
-                            addLog('✓ Video playing after user interaction', 'success');
+                            console.log('✓ Video playing');
                         }, { once: true });
                     });
-            });
-            
-            // Target lost
-            target.addEventListener('targetLost', () => {
-                addLog('❌ Target lost', 'warning');
-                video.pause();
-            });
+                });
+                
+                // Target lost
+                target.addEventListener('targetLost', () => {
+                    console.log('❌ Marker lost');
+                    video.pause();
+                });
+            }
         });
-        
-        // Check for WebGL
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (gl) {
-            addLog('✓ WebGL supported', 'success');
-        } else {
-            addLog('❌ WebGL NOT supported - AR will not work!', 'error');
-        }
-        
-        // Check HTTPS
-        if (location.protocol === 'https:' || location.hostname === 'localhost') {
-            addLog('✓ Secure context (HTTPS or localhost)', 'success');
-        } else {
-            addLog('⚠️ Not HTTPS - Camera may not work', 'warning');
-        }
     </script>
 </body>
 </html>
