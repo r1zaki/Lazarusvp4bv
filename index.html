@@ -10,12 +10,16 @@
             margin: 0;
             overflow: hidden;
         }
+        /* Hide the actual video element from DOM */
+        #vid {
+            display: none;
+        }
         #instructions {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             color: white;
             padding: 15px 25px;
             border-radius: 10px;
@@ -27,15 +31,36 @@
         #instructions.hidden {
             display: none;
         }
+        #startButton {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 20px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+        }
+        #startButton:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+        }
     </style>
 </head>
 <body>
-    <div id="instructions">
+    <button id="startButton">Start AR Experience</button>
+    
+    <div id="instructions" class="hidden">
         📸 Point your camera at the marker image
     </div>
 
     <a-scene 
-        mindar-image="imageTargetSrc: assets/targets.mind; autoStart: true; uiError: yes; uiLoading: yes; uiScanning: yes;" 
+        mindar-image="imageTargetSrc: assets/targets.mind; autoStart: false; uiError: yes; uiLoading: no; uiScanning: no;" 
         color-space="sRGB" 
         renderer="colorManagement: true, physicallyCorrectLights" 
         vr-mode-ui="enabled: false" 
@@ -57,45 +82,69 @@
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            <a-video
-                src="#vid"
+            <a-plane
+                material="src: #vid; shader: flat; transparent: true"
                 width="1"
                 height="0.552"
                 position="0 0 0"
                 rotation="0 0 0"
-            ></a-video>
+            ></a-plane>
         </a-entity>
     </a-scene>
 
     <script>
+        const startButton = document.getElementById('startButton');
         const sceneEl = document.querySelector('a-scene');
         const video = document.querySelector('#vid');
         const instructions = document.querySelector('#instructions');
+        let arStarted = false;
         
-        sceneEl.addEventListener('renderstart', () => {
-            console.log('✓ AR Scene started successfully');
+        // Start AR experience on button click
+        startButton.addEventListener('click', async () => {
+            startButton.style.display = 'none';
+            instructions.classList.remove('hidden');
+            
+            // Start MindAR
+            const mindAR = sceneEl.systems['mindar-image-system'];
+            await mindAR.start();
+            arStarted = true;
+            
+            console.log('✓ AR Started');
+        });
+        
+        // Wait for scene to be ready
+        sceneEl.addEventListener('loaded', () => {
+            console.log('✓ Scene loaded');
             
             const target = document.querySelector('[mindar-image-target]');
             
-            target.addEventListener('targetFound', () => {
-                console.log('✓ Target found - Playing video');
-                instructions.classList.add('hidden');
-                video.play().catch(e => console.error('Video play error:', e));
-            });
-            
-            target.addEventListener('targetLost', () => {
-                console.log('✗ Target lost - Pausing video');
-                instructions.classList.remove('hidden');
-                video.pause();
-            });
+            if (target) {
+                target.addEventListener('targetFound', () => {
+                    console.log('✓ Target found - Playing video');
+                    instructions.classList.add('hidden');
+                    
+                    // Play video with user gesture fallback
+                    video.play().catch(err => {
+                        console.warn('Autoplay blocked, will play on next user interaction');
+                        
+                        // Try to play on next touch/click
+                        const playOnInteraction = () => {
+                            video.play();
+                            document.removeEventListener('touchstart', playOnInteraction);
+                            document.removeEventListener('click', playOnInteraction);
+                        };
+                        document.addEventListener('touchstart', playOnInteraction);
+                        document.addEventListener('click', playOnInteraction);
+                    });
+                });
+                
+                target.addEventListener('targetLost', () => {
+                    console.log('✗ Target lost - Pausing video');
+                    instructions.classList.remove('hidden');
+                    video.pause();
+                });
+            }
         });
-        
-        // Hide instructions after 5 seconds
-        setTimeout(() => {
-            instructions.style.opacity = '0';
-            instructions.style.transition = 'opacity 1s';
-            setTimeout(() => instructions.remove(), 1000);
-        }, 5000);
     </script>
 </body>
 </html>
